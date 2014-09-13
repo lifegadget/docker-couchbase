@@ -47,9 +47,9 @@ chown -R couchbase:couchbase var
 # fi
 
 
-untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
-	-u Administrator -p password --node-init-data-path=/data
-untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
-	-u Administrator -p password --node-init-index-path=/data
+# untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
+# 	-u Administrator -p password --node-init-data-path=/data
+# untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
+# 	-u Administrator -p password --node-init-index-path=/data
 
 exec /bin/bash
