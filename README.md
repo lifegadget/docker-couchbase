@@ -8,8 +8,10 @@
 - **Build**
 
 	````bash
-	sudo docker build -t couchbase:latest git:
+	sudo docker build -t "docker-couchbase:latest"
 	````	
+
+	Choose an appropriate target tag. `latest` will work but it's usually better to be explict about the particular couchbase version you want.
 
 - **Run**
 
@@ -22,25 +24,10 @@
 
 	Assumptions/Comments:
 
-	- 	**Data**. This installation of Couchbase installs and runs Couchbase as a daemon but the file system that data is stored on should be provided by the host container. You can point anywhere on the host you like but make sure that whatever is passed as the first parameter to the `-v` switch is a valid filesystem on localhost.
+	- 	**Data**. This installation of Couchbase installs and runs Couchbase as a daemon but the file system that data is stored on should be provided by the host container. You can point anywhere on the host you like but make sure that whatever is passed as the first parameter to the `-v` switch (aka, before the colon) is a valid filesystem on localhost.
 	- 	**Username**. Currently this is not *settable* and just defaults to 'Adminstrator'
 	- 	**Password**. Please set this password (e.g., the `CB_-_PASSWORD` environment variable passed in) to whatever you like and make sure to store it in a safe place as changing this isn't fun without the existing password.
 
-&nbsp;
-	
-- **Other options**
-
-	> To be filled in
-
-- **Build Only**
-
-	To build the couchbase environment locally but *not* run, then:
-
-	````bash
-	sudo docker build -d \
-		-v /path/to/data:/data -e CB_PASSWORD=password \
-		--name=COUCHBASE lifegadget/couchbase
-	````
 
 ## Details ##
 
