@@ -1,8 +1,8 @@
 # Couchbase 
 ### Automated Image for Docker
 
-> Developed by [LifeGadget](http://lifegadget.co) for LifeGadget but anyone's welcome to use
- 
+> Developed by [LifeGadget](http://lifegadget.co) for [LifeGadget](http://lifegadget.co) but anyone is welcome to use
+
 ## Usage ##
 
 - **Build**

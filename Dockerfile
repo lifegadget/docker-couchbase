@@ -20,16 +20,18 @@ RUN echo "Installing Couchbase"
 RUN dpkg -i /tmp/$CB_FILENAME
 RUN echo "Configuring DATA directory"
 VOLUME ["/data"]
-ADD https://raw.githubusercontent.com/ksnyde/docker-couchbase/master/scripts/couch-bootstrap.sh /usr/local/sbin/couchbase
+ADD https://raw.githubusercontent.com/lifegadget/docker-couchbase/master/scripts/couch-bootstrap.sh /usr/local/sbin/couchbase
 RUN chmod 755 /usr/local/sbin/couchbase
 EXPOSE 9081 8092 11210
 
 RUN echo "Cleaning Up"
 RUN rm /tmp/$CB_FILENAME
- 
-# ADD http://cbfs-ext.hq.couchbase.com/dustin/software/confsed/confsed.lin64.gz /usr/local/sbin/confsed.gz
-# RUN gzip -d /usr/local/sbin/confsed.gz
-# RUN chmod 755 /usr/local/sbin/confsed
 
 RUN echo "Setting container's entry point"
 ENTRYPOINT ["/usr/local/sbin/couchbase"]
+
+# Logo Sillyiness
+RUN cat ascii/couchbase.txt
+RUN echo ""
+RUN cat ascii/docker.txt
+RUN echo ""
