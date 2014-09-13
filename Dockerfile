@@ -34,7 +34,7 @@ ENTRYPOINT ["/usr/local/sbin/couchbase"]
 RUN mkdir /opt/couchbase/ascii
 ADD https://raw.githubusercontent.com/lifegadget/docker-couchbase/master/ascii/couchbase.txt /opt/couchbase/ascii/couchbase.txt
 ADD https://raw.githubusercontent.com/lifegadget/docker-couchbase/master/ascii/docker.txt /opt/couchbase/ascii/docker.txt
-RUN sleep 2;echo /opt/couchbase/ascii/couchbase.txt
+RUN cat /opt/couchbase/ascii/couchbase.txt
 RUN echo ""
 RUN cat /opt/couchbase/ascii/docker.txt
 RUN echo ""

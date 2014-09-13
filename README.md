@@ -17,7 +17,7 @@
 
 	````bash
 	sudo docker run -d \
-		-v /path/to/data:/data -e CB_PASSWORD=password \
+		-v /host/mount/point:/data -e CB_PASSWORD=password \
 		-p 11210:11210 -p 8091:8091 -p 8092:8092 \
 		--name=COUCHBASE lifegadget/env-couchbase
 	````
