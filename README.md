@@ -19,8 +19,10 @@
 	sudo docker run -d \
 		-v /host/mount/point:/data -e CB_PASSWORD=password \
 		-p 11210:11210 -p 8091:8091 -p 8092:8092 \
-		--name=COUCHBASE lifegadget/env-couchbase
+		--name=COUCHBASE -t lifegadget/docker-couchbase
 	````
+
+	Running will force a download and build of the *docker-couchbase* environment the first time run. After that the image will reside locally and the cached reference will be used.
 
 	Assumptions/Comments:
 
@@ -28,6 +30,20 @@
 	- 	**Username**. Currently this is not *settable* and just defaults to 'Adminstrator'
 	- 	**Password**. Please set this password (e.g., the `CB_-_PASSWORD` environment variable passed in) to whatever you like and make sure to store it in a safe place as changing this isn't fun without the existing password.
 
+- **Manage**
+
+	- Start		
+		````bash
+		sudo docker start COUCHBASE
+		````
+	- Stop
+		````bash
+		sudo docker stop COUCHBASE
+		````
+	- Restart
+		````bash
+		sudo docker restart COUCHBASE
+		````
 
 ## Details ##
 
