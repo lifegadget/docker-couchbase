@@ -24,7 +24,8 @@
 
 - **Manage**
 
-	- Process Execution		
+	- Process Execution	
+
 		````bash
 		# Start
 		sudo docker start COUCHBASE
@@ -33,7 +34,9 @@
 		# Restart
 		sudo docker restart COUCHBASE
 		````
+
 	- Information
+
 		````bash
 		# Container details
 		sudo docker inspect COUCHBASE
