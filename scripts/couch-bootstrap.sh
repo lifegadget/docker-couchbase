@@ -46,7 +46,7 @@ chown -R couchbase:couchbase var
 #         --bucket-ramsize=128
 # fi
 
-sleep 2
+sleep 1
 untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
 	-u Administrator -p password --node-init-data-path=/data
 untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \

@@ -5,14 +5,6 @@
 
 ## Usage ##
 
-- **Build**
-
-	````bash
-	sudo docker build -t "docker-couchbase:latest"
-	````	
-
-	Choose an appropriate target tag. `latest` will work but it's usually better to be explict about the particular couchbase version you want.
-
 - **Run**
 
 	````bash
@@ -22,7 +14,7 @@
 		--name=COUCHBASE -t lifegadget/docker-couchbase
 	````
 
-	Running will force a download and build of the *docker-couchbase* environment the first time run. After that the image will reside locally and the cached reference will be used.
+	Running will force a download and build of the *docker-couchbase* environment to a locally executable container. After that the image will reside locally and the cached reference can be used. This cache, however, is not that useful because once started with `run` we will then just be manageing the resultant container with the commands below in the manage section.
 
 	Assumptions/Comments:
 
@@ -32,17 +24,21 @@
 
 - **Manage**
 
-	- Start		
+	- Process Execution		
 		````bash
+		# Start
 		sudo docker start COUCHBASE
-		````
-	- Stop
-		````bash
+		# Stop
 		sudo docker stop COUCHBASE
-		````
-	- Restart
-		````bash
+		# Restart
 		sudo docker restart COUCHBASE
+		````
+	- Information
+		````bash
+		# Container details
+		sudo docker inspect COUCHBASE
+		# Logging/STDOUT of container
+		sudo docker logs COUCHBASE
 		````
 
 ## Details ##
