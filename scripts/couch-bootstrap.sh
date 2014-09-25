@@ -52,4 +52,5 @@ untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
 untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
 	-u Administrator -p password --node-init-index-path=/data
 
+# keep the process running with call to bash
 exec /bin/bash
