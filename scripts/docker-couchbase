@@ -14,6 +14,7 @@ untilsuccessful() {
 cd /opt/couchbase
 mkdir -p var/lib/couchbase var/lib/couchbase/config var/lib/couchbase/data \
     var/lib/couchbase/stats var/lib/couchbase/logs var/lib/moxi
+touch /var/lib/couchbase/logs/dummy.log
 chown -R couchbase:couchbase var
 # Start the daemon
 /etc/init.d/couchbase-server start
@@ -53,4 +54,4 @@ untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
 	-u Administrator -p password --node-init-index-path=/data
 
 # keep the process running with call to bash
-exec /bin/bash
+tail -f /var/lib/couchbase/logs/dummy.log

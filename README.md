@@ -1,4 +1,59 @@
-# Couchbase 
+#Couchbase Docker Container
+> lifegadget/docker-couchbase [[container](https://registry.hub.docker.com/u/lifegadget/docker-couchbase/)]
+
+## Introduction
+
+This is meant as a way to provide Couchbase Enterprise and Community servers within a Docker container. This container borrows ideas from  [ncolomer/docker-templates](https://github.com/ncolomer/docker-templates), [dockerimages/couchbase](), and [dustin/couchbase](https://gist.github.com/dustin/6605182) and was designed to work well with the other LifeGadget containers to become part of a full-stack implementation:
+
+- NGINX Webserver - [lifegadget/docker-nginx](https://github.com/lifegadget/docker-nginx)
+- PHP FPM Server - [lifegadget/docker-php](https://github.com/lifegadget/docker-php)
+
+Feel free to use and we are happy to accept PR's if you have ideas you feel would be generally reusable.
+
+## Usage ##
+
+
+- **Prerequisites**
+
+	On the host machine you need to override *memlock* and *nofile* limits to make Couchbase run correctly. You do this by adding the following lines at the end of the `/etc/init/docker.conf` file:
+
+		limit memlock unlimited unlimited
+		limit nofile 262144
+
+	Finally, restart the Docker daemon: `/etc/init.d/docker restart`.
+
+- **Basic usage:**
+	
+		sudo docker run -d lifegadget/docker-couchbase
+
+	This will get you up and running with an empty database with a single Couchbase node. 
+
+	- [php.ini](https://github.com/lifegadget/docker-php/blob/master/resources/php.ini)
+	- [php-fpm.conf](https://github.com/lifegadget/docker-php/blob/master/resources/php-fpm.conf)
+
+	This configuration, in summary, gives you a "pool" listening on port 9000 with it's root content pointed to the container's `/app/content` directory. In this basic configuration, there are two PHP scripts provided out-of-the-box which are meant just to give you a sense for the environment/configuration:
+
+	- `index.php` - this provides a print out of PHP's well known `phpinfo()` function
+	- `server.php` - this provides a listing of all `$_SERVER` variables passed into FPM
+
+	If you're using this in conjunction with `lifegadget/docker-nginx` then these two PHP scripts will be available off the "fpm" root (aka, `http://localhost/fpm`). Enjoy you're done ... but you're going to probably at least put in your own content, right? Turn to the advanced section (which isn't really that advance for that and more).
+
+- **Advanced usage:**
+
+	You can progressively take over responsiblities for various parts of the configuration, including:
+
+	- `content` - this is more than likely the place where you'll want to take control and specify a directory on the host system which represents the root of the content for your site. This will be internally hosted at `/app/content`. So let's assume for a moment that your host machine has a directory called `/container/content` you would then add the following parameter to your run command:
+	
+		````bash
+		-v /container/content:/app/content
+		````
+
+		Now your script content is live. That means that handy index.php and server.php we talked about are gone but I'm sure you have far more interesting things you'd like to be doing. 
+	
+	- `conf.d` - you can take over the `conf.d` directory which is used to specify fpm "pools"; any file with named *.conf will be picked up and used as part of the FPM configuration. Choosing this will mean that the [default service
+
+
+# OLD #
 ### Automated Image for Docker
 
 > Developed by [LifeGadget](http://lifegadget.co) for [LifeGadget](http://lifegadget.co) but anyone is welcome to use
