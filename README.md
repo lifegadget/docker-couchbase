@@ -13,31 +13,29 @@ Feel free to use and we are happy to accept PR's if you have ideas you feel woul
 ## Usage ##
 
 
-- **Prerequisites**
+###Prerequisites
 
-	For most people the default docker installation will be fine and in fact you can just proceed with the presumption you are fine and run the the image and see if it starts. If you're watching the couchbase build process carefully you *will* see couchbase's installation throw a warning about:
+For most people the default docker installation will be fine and in fact you can just proceed with the presumption you are fine and run the the image and see if it starts. If you're watching the couchbase build process carefully you *will* see couchbase's installation throw a warning about:
 
-	> /opt/couchbase/etc/couchbase_init.d: 47: ulimit: error setting limit (Operation not permitted)
+> /opt/couchbase/etc/couchbase_init.d: 47: ulimit: error setting limit (Operation not permitted)
 
-	While this may seem like a potential problem it is a red herring. What it's trying to do is allocated itself proper headroom for memory and open files (as Couchbase is a big consumer of both) but programs that run under upstart are regulated by their configuration in the `/etc/config` directory and in turn containers that run under Docker inherit limits set by the docker.conf file (if you have one ... some distros don't). While it can't allocate the headroom directly itself it is likely that Docker is already asking for enough resources to share with your couchbase container. Memory, for instance, is unlimited. 
+While this may seem like a potential problem it is a red herring. What it's trying to do is allocated itself proper headroom for memory and open files (as Couchbase is a big consumer of both) but programs that run under upstart are regulated by their configuration in the `/etc/config` directory and in turn containers that run under Docker inherit limits set by the docker.conf file (if you have one ... some distros don't). While it can't allocate the headroom directly itself it is likely that Docker is already asking for enough resources to share with your couchbase container. Memory, for instance, is unlimited. 
 
-	Here is what has been historically recommended for the `/etc/init/docker.conf` file (in other Dockerfile's i've seen):
-	
-		limit memlock unlimited unlimited
-		limit nofile 262144
+Here is what has been historically recommended for the `/etc/init/docker.conf` file (in other Dockerfile's i've seen):
 
-	For most people the "nofile" limit is actually LESS than what docker asks for. Do not move downward from any limit set. As already stated, typically memory is NOT limited by Docker but if it is you can change it to how it is represented above (or just remove it completely). 
+	limit memlock unlimited unlimited
+	limit nofile 262144
 
-	If you had to make any changes, you'll need to restart the docker daemon. On modern Ubuntu versions this is managed by **upstart** so you should just type `sudo service docker restart`, if you're not using upstart then try: `/etc/init.d/docker restart`. 
+For most people the "nofile" limit is actually LESS than what docker asks for. Do not move downward from any limit set. As already stated, typically memory is NOT limited by Docker but if it is you can change it to how it is represented above (or just remove it completely). 
+
+If you had to make any changes, you'll need to restart the docker daemon. On modern Ubuntu versions this is managed by **upstart** so you should just type `sudo service docker restart`, if you're not using upstart then try: `/etc/init.d/docker restart`. 
 
 
 ###Basic usage:
 
-````bash
-sudo docker run -d \
-	-p 11210:11210 -p 8091:8091 -p 8092:8092 \
-	-lifegadget/docker-couchbase 	
-````bash
+	sudo docker run -d \
+		-p 11210:11210 -p 8091:8091 -p 8092:8092 \
+		-lifegadget/docker-couchbase 	
 
 This will get you up and running with an empty database with a single Couchbase node. Go to the host machine and point your browser to http://localhost:8091 and you'll get the familiar startup screen:
 
@@ -62,7 +60,10 @@ The basic usage example ran `lifegadget/docker-couchbase` but specified no param
 - `join` - starts the container and then joins it to an existing 
  
 ## Versions ##
-All versions of Couchbase use a base image of Ubuntu (currently 14.04). The list of available Couchbase 'versions' is broken up into both the build number and whether the build is 'community' or 'enterprise'. Currently the only available versions are Enterprise releases but in the future a branch for community will be created:
+All versions of Couchbase use a base image of Ubuntu (currently 14.04). The 
+available Couchbase versions is broken up by both "Enterprise/Community" editions, 
+
+into both the build number and whether the build is 'community' or 'enterprise'. Currently the only available versions are Enterprise releases but in the future a branch for community will be created:
 
 <table>
 	<tr>
