@@ -1,0 +1,147 @@
+#!/bin/bash
+
+function untilsuccessful() {
+    "$@"
+    while [ $? -ne 0 ]
+    do
+	    echo "Retrying...";
+	    sleep 1
+        "$@"
+    done
+}
+
+# Ensure proper directories before startup
+cd /opt/couchbase
+mkdir -p var/lib/couchbase var/lib/couchbase/config var/lib/couchbase/data \
+    var/lib/couchbase/stats var/lib/couchbase/logs var/lib/moxi
+touch /var/lib/couchbase/logs/dummy.log
+chown -R couchbase:couchbase var
+chown -R couchbase:couchbase /app
+# Start the daemon
+/etc/init.d/couchbase-server start
+
+# int=`ip route | awk '/^default/ { print $5 }'`
+# addr=`ip route | egrep "^[0-9].*$int" | awk '{ print $9 }'`
+#
+# if [ -z "$DOCKER_EXT_ADDR" ]
+# then
+#     DOCKER_EXT_ADDR="$addr"
+# fi
+
+# echo "{\"$addr\": \"$DOCKER_EXT_ADDR\", \"127.0.0.1\": \"$DOCKER_EXT_ADDR\"}" > /tmp/confsed.json
+
+# /usr/local/sbin/confsed -rewriteconf /tmp/confsed.json http://localhost:8091/ &
+
+# if [ -n "$ALPHA_PORT_7081_TCP_ADDR" ]
+# then
+#     echo "Joining cluster at $ALPHA_PORT_7081_TCP_ADDR"
+#     untilsuccessful /opt/couchbase/bin/couchbase-cli server-add -c $ALPHA_PORT_7081_TCP_ADDR:8091 \
+#         --user=Administrator --password=password --server-add=$addr:8091
+# else
+#     echo "Starting cluster"
+#     untilsuccessful /opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1:8091 \
+#         --cluster-init-username=Administrator --cluster-init-password=password \
+#         --cluster-init-ramsize=512
+#
+#     untilsuccessful /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 \
+#         -u Administrator -p password --bucket=default -c localhost:8091 \
+#         --bucket-ramsize=128
+# fi
+
+# sleep 1
+
+# untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
+# 	-u Administrator -p password --node-init-index-path=/app/data
+
+# keep the process running with call to bash
+cat /app/resources/couchbase.txt
+echo "";
+cat /app/resources/docker.txt
+echo "";
+echo "";
+cat /opt/couchbase/VERSION.txt
+echo "";
+sleep 2;
+echo "* changing data directory to point to /app/data";
+untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
+	-u Administrator -p password --node-init-data-path=/app/data
+echo "";
+echo "* changing index directory to point to /app/index";
+untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
+	-u Administrator -p password --node-init-data-path=/app/index
+echo "";
+
+bucketList=untilsuccessful /opt/couchbase/bin/couchbase-cli bucket-list -c 127.0.0.1:8091 \
+	-u Administrator -p password 
+if [ -z "$bucketList" ]; then
+	echo "* No buckets currently defined";
+else
+	echo "* current bucket list:";
+	echo $bucketList;
+fi
+echo "";
+
+# Ensure Username/Password always available
+if [ -z "$USER" ]; then
+	USER="Administrator"
+fi
+if [ -z "$PASSWORD" ]; then
+	PASSWORD="password"
+fi
+
+# Conditional logic based on command sent in
+case "$1" in
+	start)
+		echo "Couchbase Started!";
+		echo "------------------";
+	;;
+	transfer)
+		echo "* transfer process starting"
+		if [ -z $REMOTE_HOST ]; then
+			echo "REMOTE_HOST not defined! Cancelling transfer.";
+			exit 1;
+		elif [ -z $BUCKETS ]; then
+			echo "BUCKETS not defined! Must have a comma seperated list of buckets to transfer.";
+			exit 1;
+		else
+			IFS=","
+			for bucket in $BUCKETS; do
+				echo "Transfering '$bucket' bucket";
+				/opt/couchbase/bin/cbtransfer http://$REMOTE_HOST http://127.0.0.1:8091 -u $USER -p $PASSWORD -b $bucket -B $bucket
+			done
+			
+			echo "Couchbase Started and Transferred!";
+			echo "----------------------------------";
+			echo "";
+			bucketList=untilsuccessful /opt/couchbase/bin/couchbase-cli bucket-list -c 127.0.0.1:8091 \
+				-u Administrator -p password 
+			if [ -z "$bucketList" ]; then
+				echo "* Still no buckets defined post-transfer";
+			else
+				echo "* Bucket list post-transfer:";
+				echo $bucketList;
+			fi
+		fi
+	;;
+	create)
+		if [ -z $CREATE_SCRIPT ]; then
+			echo "CREATE_SCRIPT not defined. This must be present and point to a valid bash script.";
+			exit 1;
+		else
+			echo "* creating buckets from "$CREATE_SCRIPT;
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=transaction_data --bucket-type=couchbase --bucket-port=11222 --bucket-ramsize=200 --bucket-replica=0 --enable-flush=0 --wait
+			sleep 1;
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=reference_data --bucket-type=couchbase --bucket-ramsize=200 --bucket-replica=0 --enable-flush=1 --wait
+			sleep 1; 
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=oauth_data --bucket-type=couchbase --bucket-ramsize=200 --bucket-replica=0 --enable-flush=1 --wait
+			sleep 1;
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=lookups --bucket-type=couchbase --bucket-ramsize=200 --bucket-replica=0 --enable-flush=1 --wait
+		fi
+esac
+	
+
+trap "echo Exiting Couchbase Service; /etc/init.d/couchbase-server stop; exit" SIGINT SIGTERM SIGTSTP
+while true; do
+# nothing
+sleep 5
+done
