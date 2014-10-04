@@ -81,13 +81,17 @@ else
 fi
 echo "";
 
-# Ensure Username/Password always available
+# Set reasonable defaults values
 if [ -z "$USER" ]; then
 	USER="Administrator"
 fi
 if [ -z "$PASSWORD" ]; then
 	PASSWORD="password"
 fi
+if [ -z "$CLUSTER_RAMSIZE" ]; then
+	CLUSTER_RAMSIZE=1000
+fi
+
 
 # Conditional logic based on command sent in
 case "$1" in
@@ -114,7 +118,7 @@ case "$1" in
 			echo "----------------------------------";
 			echo "";
 			bucketList=untilsuccessful /opt/couchbase/bin/couchbase-cli bucket-list -c 127.0.0.1:8091 \
-				-u Administrator -p password 
+				-u $USER -p $PASSWORD 
 			if [ -z "$bucketList" ]; then
 				echo "* Still no buckets defined post-transfer";
 			else
@@ -129,14 +133,73 @@ case "$1" in
 			exit 1;
 		else
 			echo "* creating buckets from "$CREATE_SCRIPT;
-			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=transaction_data --bucket-type=couchbase --bucket-port=11222 --bucket-ramsize=200 --bucket-replica=0 --enable-flush=0 --wait
-			sleep 1;
-			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=reference_data --bucket-type=couchbase --bucket-ramsize=200 --bucket-replica=0 --enable-flush=1 --wait
-			sleep 1; 
-			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=oauth_data --bucket-type=couchbase --bucket-ramsize=200 --bucket-replica=0 --enable-flush=1 --wait
-			sleep 1;
-			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=lookups --bucket-type=couchbase --bucket-ramsize=200 --bucket-replica=0 --enable-flush=1 --wait
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=transactional_data \
+			--bucket-type=couchbase  \
+			--bucket-ramsize=450  \
+			--bucket-replica=0  \
+			--enable-flush=0  \
+			--wait
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=reference_data \
+			--bucket-type=couchbase  \
+			--bucket-ramsize=100  \
+			--bucket-replica=0  \
+			--enable-flush=1  \
+			--wait
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=oauth_data \
+			--bucket-type=couchbase  \
+			--bucket-ramsize=100  \
+			--bucket-replica=0  \
+			--enable-flush=1  \
+			--wait
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=lookups \
+			--bucket-type=couchbase  \
+			--bucket-ramsize=150  \
+			--bucket-replica=0  \
+			--enable-flush=1  \
+			--wait
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=user_data \
+			--bucket-type=couchbase  \
+			--bucket-ramsize=200  \
+			--bucket-replica=0  \
+			--enable-flush=1  \
+			--wait
+			
+			bucketList=$(untilsuccessful /opt/couchbase/bin/couchbase-cli bucket-list -c 127.0.0.1:8091 \
+				-u $USER -p $PASSWORD )
+			if [ -z "$bucketList" ]; then
+				echo "* Still no buckets defined post-transfer";
+			else
+				echo "* Bucket list post-transfer:";
+				echo $bucketList;
+			fi
+			
+			echo "* adding self to new Couchbase cluster";
+			/opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1:8091 --cluster-init-username=$USER --cluster-init-password=$PASSWORD --cluster-init-ramsize=$CLUSTER_RAMSIZE --wait
 		fi
+	;;
+	join)
+		echo "* joining Couchbase cluster";
+		if [ -z "$REBALANCE" ]; then
+			/opt/couchbase/bin/couchbase-cli rebalance -c 127.0.0.1:8091 
+				--server-add=$CLUSTER_ADDRESS \
+				--server-add-username=$USER \
+				--server-add-password=$PASSWORD \
+				--wait
+		else
+			/opt/couchbase/bin/couchbase-cli server-add -c 127.0.0.1:8091 \
+				--server-add=$CLUSTER_ADDRESS \
+				--server-add-username=$USER \
+				--server-add-password=$PASSWORD \
+				--wait
+		fi
+	;;
+	restore)
+		echo "* restoring Couchbase from backup";
+		/opt/couchbase/bin/couchbase-cli cbrestore /app/backup http://127.0.0.1:8091 -v 
+		 
+		echo "* adding self to new Couchbase cluster";
+		/opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1:8091 --cluster-init-username=$USER --cluster-init-password=$PASSWORD --cluster-init-ramsize=$CLUSTER_RAMSIZE --wait		
+	;;
 esac
 	
 
