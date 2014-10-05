@@ -18,33 +18,19 @@ RUN wget -O/tmp/$CB_FILENAME $CB_SOURCE  \
 	&& dpkg -i /tmp/$CB_FILENAME  \
 	&& rm /tmp/$CB_FILENAME
 
-# SpiderMonkey dependencies
-ENV MOZ_JS_VERSON 24.2.0
-RUN apt-get install -y unzip mercurial g++ make autoconf2.13 yasm libgtk2.0-dev libglib2.0-dev  \
-	&& apt-get install -y libdbus-1-dev libdbus-glib-1-dev libasound2-dev libcurl4-openssl-dev libiw-dev libxt-dev mesa-common-dev \
-	&& apt-get install -y libgstreamer0.10-dev libgstreamer-plugins-base0.10-dev libpulse-dev m4 flex ccache 
-# Download and Configure SpiderMonkey
-RUN mkdir -p /tmp/spidermonkey \
-	&& cd /tmp/spidermonkey \
-	&& wget -O/tmp/spidermonkey/mozjs-$MOZ_JS_VERSON.tar.bz2 http://ftp.mozilla.org/pub/mozilla.org/js/mozjs-$MOZ_JS_VERSON.tar.bz2 \
-	&& tar -xjf mozjs-$MOZ_JS_VERSON.tar.bz2 \
-	&& cd mozjs-24.2.0/js/src \
-	&& autoconf2.13 \
-	&& mkdir build-release \
-	&& cd build-release \
-	&& ../configure 
-# Make and Install SpiderMonkey (and add jsawk and resty too)
-RUN make \
-	&& make install \
+# SpiderMonkey, jsawk, and resty
+RUN apt-get install -y libmozjs-24-bin \
+	&& ln -s /usr/bin/js24 /usr/local/bin/js \
+	&& echo "export JS=/usr/local/bin/js" > /etc/jsawkrc \
 	&& wget -O/usr/local/bin/jsawk http://github.com/micha/jsawk/raw/master/jsawk \
 	&& wget -O/usr/local/bin/resty http://github.com/micha/resty/raw/master/resty \
+	&& chmod +x /usr/local/bin/jsawk /usr/local/bin/resty \
 	&& { \
 		echo ""; \
 		echo "source /usr/local/bin/resty"; \
 		echo ""; \
 	} >> /etc/bash.bashrc
-	
-	
+
 # Create directory structure for volume sharing
 RUN mkdir -p /app \
 	&& mkdir -p /app/data \
