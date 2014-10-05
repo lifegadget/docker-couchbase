@@ -7,8 +7,6 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update \
 	&& apt-get install -y librtmp0 python-httplib2 language-pack-en-base vim wget \
 	&& dpkg-reconfigure locales
-ENV CB_USERNAME Adminstrator
-ENV CB_PASSWORD password
 
 # Downloading and Installing Couchbase
 ENV CB_VERSION 2.5.1
@@ -41,6 +39,8 @@ RUN mkdir -p /app \
 	&& chown -R couchbase:couchbase /app
 VOLUME ["/app/data"]
 VOLUME ["/app/backup"]
+VOLUME ["/app/volume"]
+
 # Add bootstrapper
 ADD resources/docker-couchbase /usr/local/bin/docker-couchbase
 RUN export PATH=$PATH:/opt/couchbase/bin \
@@ -61,6 +61,7 @@ RUN { \
 # Add Resources
 ADD resources/couchbase.txt /app/resources/couchbase.txt
 ADD resources/docker.txt /app/resources/docker.txt
+ADD resources/default.conf /app/conf/default.conf
 
 ENTRYPOINT ["docker-couchbase"]
 CMD	["start"]

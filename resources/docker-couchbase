@@ -49,7 +49,7 @@ fi
 echo "";
 
 # Set reasonable defaults values
-if [ -z "$USER" ]; then
+if [ -z "$USERNAME" ]; then
 	USER="Administrator"
 fi
 if [ -z "$PASSWORD" ]; then
@@ -91,58 +91,60 @@ case "$1" in
 		fi
 	;;
 	create)
-		if [ -z $CREATE_SCRIPT ]; then
-			echo "CREATE_SCRIPT not defined. This must be present and point to a valid bash script.";
-			exit 1;
-		else
-			if [ -z "$CREATE_SCRIPT" ];then
+		# Determine the create script
+		if [ -z "$CREATE_SCRIPT" ];then
+			if [ -z "$2" ]; then
 				CREATE_SCRIPT=default.conf
-			fi
-			echo "* creating buckets from "$CREATE_SCRIPT;
-			if [ -e /app/conf/$CREATE_SCRIPT ];then 
-				configuration=`cat /app/conf/$CREATE_SCRIPT`
-				echo "     - creation script '$CREATE_SCRIPT' found on volume share";
-				printf "     - buckets to be configured: %s\n" `echo $configuration | jsawk 'return this.name'`;
 			else
-				echo "ERROR: could not find '/app/conf/$CREATE_SCRIPT'; stopping configuration/creation process";
+				CREATE_SCRIPT=$2
+			fi
+		fi
+		echo "* creating buckets from "$CREATE_SCRIPT;
+		if [ -e /app/conf/$CREATE_SCRIPT ];then 
+			configuration=`cat /app/conf/$CREATE_SCRIPT`
+			echo "     - creation script '$CREATE_SCRIPT' found on volume share";
+			printf "     - buckets to be configured: %s\n" `echo $configuration | jsawk 'return this.name'`;
+		else
+			echo "ERROR: could not find '/app/conf/$CREATE_SCRIPT'; stopping configuration/creation process";
+			exit 1;
+		fi
+		# define cluster ramsize as sum of bucket sizes unless explictly set
+		if [ -z "$CLUSTER_RAMSIZE" ]; then
+			CLUSTER_RAMSIZE=`echo $configuration | jsawk 'return this.size ? this.size : 100' | jsawk -a 'return _.reduce(this, function(memo,num) { return memo + num; }, 0);'`
+			echo "* Couchbase cluster size not explicit set (CLUSTER_RAMSIZE) so using aggregate of bucket sizes: $CLUSTER_RAMSIZE";
+		else
+			echo "* Couchbase cluster size was explicity set to $CLUSTER_RAMSIZE";
+			MIN_RAMSIZE=`echo $configuration | jsawk 'return this.size ? this.size : 100' | jsawk -a 'return _.reduce(this, function(memo,num) { return memo + num; }, 0);'`
+			if [ $CLUSTER_RAMSIZE < $MIN_RAMSIZE ]; then
+				echo "ERROR: the buckets require at least $MIN_RAMSIZE to be configured correctly. Quitting.";
 				exit 1;
 			fi
-			# define cluster ramsize as sum of bucket sizes unless explictly set
-			if [ -z "$CLUSTER_RAMSIZE" ]; then
-				CLUSTER_RAMSIZE=`echo $configuration | jsawk 'return this.size ? this.size : 100' | jsawk -a 'return _.reduce(this, function(memo,num) { return memo + num; }, 0);'`
-				echo "* Couchbase cluster size not explicit set (CLUSTER_RAMSIZE) so using aggregate of bucket sizes: $CLUSTER_RAMSIZE";
-			else
-				echo "* Couchbase cluster size was explicity set to $CLUSTER_RAMSIZE";
-				MIN_RAMSIZE=`echo $configuration | jsawk 'return this.size ? this.size : 100' | jsawk -a 'return _.reduce(this, function(memo,num) { return memo + num; }, 0);'`
-				if [ $CLUSTER_RAMSIZE < $MIN_RAMSIZE ]; then
-					echo "ERROR: the buckets require at least $MIN_RAMSIZE to be configured correctly. Quitting.";
-					exit 1;
-				fi
-			fi
-			
-			BUCKETS=`echo $configuration | jsawk -n 'out(this.name)'`
-			for bucket in $BUCKETS; do
-				echo "";
-				echo "* Creating '$bucket' bucket";
-				bucketConfig=`echo $configuration | jsawk -a "return _.where(this,{name: \"$bucket\"})"`
-				cbType=`echo $bucketConfig | jsawk -n 'out(this.type ? this.type : "couchbase")'`
-				cbSize=`echo $bucketConfig | jsawk -n 'out(this.size ? this.size : 100)'`
-				cbReplica=`echo $bucketConfig | jsawk -n 'out(this.replica ? this.replica : "0")'`
-				cbFlush=`echo $bucketConfig | jsawk -n 'out(this.flush ? this.flush : "0")'`
-				/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=$bucket \
-					--bucket-type=$cbType  \
-					--bucket-ramsize=$cbSize  \
-					--bucket-replica=$cbReplica  \
-					--enable-flush=$cbFlush  \
-					--wait
-			done
-			
-			echo "* Bucket list post-transfer:";
-			echo `GET /buckets | jsawk 'return this.name'`
-			
-			echo "* adding self to new Couchbase cluster";
-			/opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1:8091 --cluster-init-username=$USER --cluster-init-password=$PASSWORD --cluster-init-ramsize=$CLUSTER_RAMSIZE --wait
 		fi
+		
+		BUCKETS=`echo $configuration | jsawk -n 'out(this.name)'`
+		for bucket in $BUCKETS; do
+			echo "";
+			echo "* Creating '$bucket' bucket";
+			bucketConfig=`echo $configuration | jsawk -a "return _.where(this,{name: \"$bucket\"})"`
+			cbType=`echo $bucketConfig | jsawk -n 'out(this.type ? this.type : "couchbase")'`
+			cbSize=`echo $bucketConfig | jsawk -n 'out(this.size ? this.size : 100)'`
+			cbReplica=`echo $bucketConfig | jsawk -n 'out(this.replica ? this.replica : "0")'`
+			cbFlush=`echo $bucketConfig | jsawk -n 'out(this.flush ? this.flush : "0")'`
+			/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=$bucket \
+				--bucket-type=$cbType  \
+				--bucket-ramsize=$cbSize  \
+				--bucket-replica=$cbReplica  \
+				--enable-flush=$cbFlush  \
+				--wait
+		done
+		
+		echo "* Bucket list post-transfer:";
+		echo `GET /buckets | jsawk 'return this.name'`
+		
+		echo "* adding self to new Couchbase cluster";
+		/opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1:8091 --cluster-init-username=$USER --cluster-init-password=$PASSWORD --cluster-init-ramsize=$CLUSTER_RAMSIZE --wait
+		echo "";
+		echo "Couchbase is READY!"
 	;;
 	join)
 		if [ -z "$CLUSTER_ADDRESS" ]; then
@@ -179,7 +181,7 @@ esac
 	
 
 trap "echo Exiting Couchbase Service; /etc/init.d/couchbase-server stop; exit 0;" SIGINT SIGTERM SIGTSTP
+
 while true; do
-# nothing
-sleep 5
+	sleep 1;
 done
