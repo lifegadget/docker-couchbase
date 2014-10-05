@@ -17,42 +17,8 @@ mkdir -p var/lib/couchbase var/lib/couchbase/config var/lib/couchbase/data \
     var/lib/couchbase/stats var/lib/couchbase/logs var/lib/moxi
 touch /var/lib/couchbase/logs/dummy.log
 chown -R couchbase:couchbase var
-chown -R couchbase:couchbase /app
 # Start the daemon
 /etc/init.d/couchbase-server start
-
-# int=`ip route | awk '/^default/ { print $5 }'`
-# addr=`ip route | egrep "^[0-9].*$int" | awk '{ print $9 }'`
-#
-# if [ -z "$DOCKER_EXT_ADDR" ]
-# then
-#     DOCKER_EXT_ADDR="$addr"
-# fi
-
-# echo "{\"$addr\": \"$DOCKER_EXT_ADDR\", \"127.0.0.1\": \"$DOCKER_EXT_ADDR\"}" > /tmp/confsed.json
-
-# /usr/local/sbin/confsed -rewriteconf /tmp/confsed.json http://localhost:8091/ &
-
-# if [ -n "$ALPHA_PORT_7081_TCP_ADDR" ]
-# then
-#     echo "Joining cluster at $ALPHA_PORT_7081_TCP_ADDR"
-#     untilsuccessful /opt/couchbase/bin/couchbase-cli server-add -c $ALPHA_PORT_7081_TCP_ADDR:8091 \
-#         --user=Administrator --password=password --server-add=$addr:8091
-# else
-#     echo "Starting cluster"
-#     untilsuccessful /opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1:8091 \
-#         --cluster-init-username=Administrator --cluster-init-password=password \
-#         --cluster-init-ramsize=512
-#
-#     untilsuccessful /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 \
-#         -u Administrator -p password --bucket=default -c localhost:8091 \
-#         --bucket-ramsize=128
-# fi
-
-# sleep 1
-
-# untilsuccessful /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 \
-# 	-u Administrator -p password --node-init-index-path=/app/data
 
 # keep the process running with call to bash
 cat /app/resources/couchbase.txt
@@ -89,7 +55,6 @@ fi
 if [ -z "$PASSWORD" ]; then
 	PASSWORD="password"
 fi
-
 
 # Conditional logic based on command sent in
 case "$1" in
@@ -135,54 +100,42 @@ case "$1" in
 			fi
 			echo "* creating buckets from "$CREATE_SCRIPT;
 			if [ -e /app/conf/$CREATE_SCRIPT ];then 
+				configuration=`cat /app/conf/$CREATE_SCRIPT`
 				echo "     - creation script '$CREATE_SCRIPT' found on volume share";
-				printf "     - buckets to be configured: %s\n" `cat /app/conf/$CREATE_SCRIPT | jsawk 'return this.name'`;
+				printf "     - buckets to be configured: %s\n" `echo $configuration | jsawk 'return this.name'`;
 			else
 				echo "ERROR: could not find '/app/conf/$CREATE_SCRIPT'; stopping configuration/creation process";
 				exit 1;
 			fi
-			# set default bucketsize of 100 if not set explicitly
-			
-			
 			# define cluster ramsize as sum of bucket sizes unless explictly set
 			if [ -z "$CLUSTER_RAMSIZE" ]; then
-				echo "* Couchbase cluster size not explicit set (CLUSTER_RAMSIZE) so using aggregate of bucket sizes";
-				CLUSTER_RAMSIZE=1000
+				CLUSTER_RAMSIZE=`echo $configuration | jsawk 'return this.size ? this.size : 100' | jsawk -a 'return _.reduce(this, function(memo,num) { return memo + num; }, 0);'`
+				echo "* Couchbase cluster size not explicit set (CLUSTER_RAMSIZE) so using aggregate of bucket sizes: $CLUSTER_RAMSIZE";
 			else
 				echo "* Couchbase cluster size was explicity set to $CLUSTER_RAMSIZE";
+				MIN_RAMSIZE=`echo $configuration | jsawk 'return this.size ? this.size : 100' | jsawk -a 'return _.reduce(this, function(memo,num) { return memo + num; }, 0);'`
+				if [ $CLUSTER_RAMSIZE < $MIN_RAMSIZE ]; then
+					echo "ERROR: the buckets require at least $MIN_RAMSIZE to be configured correctly. Quitting.";
+					exit 1;
+				fi
 			fi
 			
-			
-			# /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=transactional_data \
-			# --bucket-type=couchbase  \
-			# --bucket-ramsize=450  \
-			# --bucket-replica=0  \
-			# --enable-flush=0  \
-			# --wait
-			# /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=reference_data \
-			# --bucket-type=couchbase  \
-			# --bucket-ramsize=100  \
-			# --bucket-replica=0  \
-			# --enable-flush=1  \
-			# --wait
-			# /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=oauth_data \
-			# --bucket-type=couchbase  \
-			# --bucket-ramsize=100  \
-			# --bucket-replica=0  \
-			# --enable-flush=1  \
-			# --wait
-			# /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=lookups \
-			# --bucket-type=couchbase  \
-			# --bucket-ramsize=150  \
-			# --bucket-replica=0  \
-			# --enable-flush=1  \
-			# --wait
-			# /opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=user_data \
-			# --bucket-type=couchbase  \
-			# --bucket-ramsize=200  \
-			# --bucket-replica=0  \
-			# --enable-flush=1  \
-			# --wait
+			BUCKETS=`echo $configuration | jsawk -n 'out(this.name)'`
+			for bucket in $BUCKETS; do
+				echo "";
+				echo "* Creating '$bucket' bucket";
+				bucketConfig=`echo $configuration | jsawk -a "return _.where(this,{name: \"$bucket\"})"`
+				cbType=`echo $bucketConfig | jsawk -n 'out(this.type ? this.type : "couchbase")'`
+				cbSize=`echo $bucketConfig | jsawk -n 'out(this.size ? this.size : 100)'`
+				cbReplica=`echo $bucketConfig | jsawk -n 'out(this.replica ? this.replica : "0")'`
+				cbFlush=`echo $bucketConfig | jsawk -n 'out(this.flush ? this.flush : "0")'`
+				/opt/couchbase/bin/couchbase-cli bucket-create -c 127.0.0.1:8091 --bucket=$bucket \
+					--bucket-type=$cbType  \
+					--bucket-ramsize=$cbSize  \
+					--bucket-replica=$cbReplica  \
+					--enable-flush=$cbFlush  \
+					--wait
+			done
 			
 			echo "* Bucket list post-transfer:";
 			echo `GET /buckets | jsawk 'return this.name'`
@@ -192,7 +145,15 @@ case "$1" in
 		fi
 	;;
 	join)
-		echo "* joining Couchbase cluster";
+		if [ -z "$CLUSTER_ADDRESS" ]; then
+			if [ -z "$2" ]; then
+				echo "ERROR: no CLUSTER_ADDRESS specified! Exiting ...";
+				exit 1;
+			else
+				CLUSTER_ADDRESS=$2
+			fi
+		fi
+		echo "* joining Couchbase cluster at ";
 		if [ -z "$REBALANCE" ]; then
 			/opt/couchbase/bin/couchbase-cli rebalance -c 127.0.0.1:8091 
 				--server-add=$CLUSTER_ADDRESS \
@@ -217,7 +178,7 @@ case "$1" in
 esac
 	
 
-trap "echo Exiting Couchbase Service; /etc/init.d/couchbase-server stop; exit" SIGINT SIGTERM SIGTSTP
+trap "echo Exiting Couchbase Service; /etc/init.d/couchbase-server stop; exit 0;" SIGINT SIGTERM SIGTSTP
 while true; do
 # nothing
 sleep 5

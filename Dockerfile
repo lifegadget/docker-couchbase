@@ -27,7 +27,7 @@ RUN apt-get install -y libmozjs-24-bin \
 	&& chmod +x /usr/local/bin/jsawk /usr/local/bin/resty \
 	&& { \
 		echo ""; \
-		echo "source /usr/local/bin/resty"; \
+		echo "source /usr/local/bin/resty -W 'http://localhost:8091/pools/default'"; \
 		echo ""; \
 	} >> /etc/bash.bashrc
 
