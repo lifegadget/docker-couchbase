@@ -1,5 +1,24 @@
 #!/bin/bash
 source /usr/local/bin/resty -W 'http://localhost:8091/pools/default'
+# Start Lumberjack
+/opt/lumberjack/bin/lumberjack -config /app/conf/logstash-forwarder.conf &
+
+function logIt() {
+	logFile="/app/logs/docker-couchbase.log"
+	timestamp=$( date )
+	if [ -z "$2" ];then
+		severity="INFO"
+	else
+		severity="$2"
+	fi
+	hostname=`hostname`
+	facility_label="user-level"
+	facility=1
+	echo "{ \"timestamp\": \"$timestamp\", \"host\": \"${hostname}\", \"server_software\": [ \"\" ], \"facility_label\": \"${facility_label}\", \"severity\":\"$severity\", \"message\": \"$1\" }" >> $logFile
+}
+
+# Log to Lumberjack
+logIt "Couchbase started with: $@"
 
 function untilsuccessful() {
     "$@"
@@ -9,6 +28,10 @@ function untilsuccessful() {
 	    sleep 1
         "$@"
     done
+}
+
+function startSysLogging() {
+	service rsyslog start
 }
 
 # Ensure proper directories before startup
@@ -59,10 +82,12 @@ fi
 # Conditional logic based on command sent in
 case "$1" in
 	start)
+		startSysLogging;
 		echo "Couchbase Started!";
 		echo "------------------";
 	;;
 	transfer)
+		startSysLogging;
 		echo "* transfer process starting"
 		if [ -z $REMOTE_HOST ]; then
 			echo "REMOTE_HOST not defined! Cancelling transfer.";
@@ -91,6 +116,7 @@ case "$1" in
 		fi
 	;;
 	create)
+		startSysLogging;
 		# Determine the create script
 		if [ -z "$CREATE_SCRIPT" ];then
 			if [ -z "$2" ]; then
@@ -147,6 +173,7 @@ case "$1" in
 		echo "Couchbase is READY!"
 	;;
 	join)
+		startSysLogging;
 		if [ -z "$CLUSTER_ADDRESS" ]; then
 			if [ -z "$2" ]; then
 				echo "ERROR: no CLUSTER_ADDRESS specified! Exiting ...";
@@ -171,6 +198,7 @@ case "$1" in
 		fi
 	;;
 	restore)
+		startSysLogging;
 		echo "* restoring Couchbase from backup";
 		/opt/couchbase/bin/couchbase-cli cbrestore /app/backup http://127.0.0.1:8091 -v 
 		 

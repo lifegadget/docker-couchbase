@@ -58,6 +58,17 @@ RUN { \
 		echo 'source /etc/bash.shortcuts'; \
 	} >> /etc/bash.bashrc
 
+# Lumberjack
+RUN apt-get update \
+	&& apt-get install -yqq wget 
+ENV LUMBERJACK_VERSION 0.3.1
+RUN	wget --no-check-certificate -O/tmp/lumberjack_${LUMBERJACK_VERSION}_amd64.deb https://github.com/lifegadget/lumberjack-builder/raw/master/resources/lumberjack_${LUMBERJACK_VERSION}_amd64.deb \
+	&& dpkg -i /tmp/lumberjack_${LUMBERJACK_VERSION}_amd64.deb \
+	&& rm /tmp/lumberjack_${LUMBERJACK_VERSION}_amd64.deb 
+COPY resources/logstash-forwarder.conf /app/logstash-forwarder.conf
+# COPY resources/logstash-init /etc/init.d/lumberjack
+COPY resources/logstash-defaults /etc/default/lumberjack
+
 # Add Resources
 ADD resources/couchbase.txt /app/resources/couchbase.txt
 ADD resources/docker.txt /app/resources/docker.txt

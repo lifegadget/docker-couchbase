@@ -1,0 +1,3 @@
+# Options for lumberjack
+LOGSTASH_FORWARDER_OPTIONS="-config /app/conf/logstash-forwarder.conf"
+LUMBERJACK_OPTIONS="-config /app/conf/logstash-forwarder.conf"
